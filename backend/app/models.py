@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,12 +20,16 @@ class Exam(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     subject: Mapped[str] = mapped_column(String(120))
     exam_date: Mapped[date] = mapped_column(Date)
+    exam_time: Mapped[str] = mapped_column(String(5), default="09:00")
     scope_start: Mapped[int] = mapped_column(Integer)
     scope_end: Mapped[int] = mapped_column(Integer)
     scope_unit: Mapped[str] = mapped_column(String(20), default="페이지")
     target_passes: Mapped[float] = mapped_column(Float, default=1.0)
     plan_version: Mapped[int] = mapped_column(Integer, default=1)
     ai_summary: Mapped[str] = mapped_column(String(500), default="")
+    priority_chapters: Mapped[str] = mapped_column(Text, default="")
+    last_replan_summary: Mapped[str] = mapped_column(String(700), default="")
+    pace_advice: Mapped[str] = mapped_column(String(700), default="")
     tasks: Mapped[list["StudyTask"]] = relationship(back_populates="exam", cascade="all, delete-orphan")
 
 

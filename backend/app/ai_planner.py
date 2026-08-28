@@ -63,6 +63,7 @@ def generate_study_plan(
     completed_units: int,
     start_date: date,
     events: list[dict[str, str]],
+    priority_chapters: str = "",
 ) -> AIStudyPlan:
     if not OPENAI_API_KEY:
         raise OpenAIPlannerError("OPENAI_API_KEY가 설정되지 않았습니다. backend/.env에 API 키를 입력해 주세요.")
@@ -82,6 +83,7 @@ def generate_study_plan(
             "scope_end": scope_end,
             "scope_unit": scope_unit,
             "target_passes": target_passes,
+            "priority_chapters": priority_chapters,
         },
         "progress": {
             "completed_units_across_passes": completed_units,
@@ -92,6 +94,8 @@ def generate_study_plan(
     instructions = (
         "당신은 대학생 시험 계획을 만드는 일정 최적화 엔진이다. "
         "시험 당일에는 공부를 배정하지 말고, 고정 일정과 시간이 겹치지 않게 하라. "
+        "blocking_events에는 다른 시험의 공부 계획도 포함된다. 어떤 시간도 겹치게 배정하지 마라. "
+        "priority_chapters가 있으면 강조된 범위를 앞쪽 날짜와 집중하기 좋은 시간에 우선 배치하라. "
         "범위를 회독 순서대로 빠짐없이 배정하고 같은 회독 안에서 중복시키지 마라. "
         "고정 일정이 많은 날은 학습량을 줄이고 가능한 시간대를 suggested time으로 제시하라. "
         "출력은 제공된 JSON schema를 정확히 따라야 한다."

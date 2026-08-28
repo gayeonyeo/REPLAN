@@ -62,5 +62,29 @@ def test_partial_check_in_creates_new_plan_version(monkeypatch) -> None:
         assert result["changed_tasks"] > 0
         assert result["exam"]["current_passes"] > 0
         assert any(item["plan_version"] == result["new_version"] for item in result["exam"]["tasks"])
+        assert "replan_explanation" in result
+        assert "recommendation" in result
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_exam_can_be_deleted(monkeypatch) -> None:
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    TestingSession = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr("app.main.create_openai_tasks", fake_openai_tasks)
+
+    def override_db():
+        with TestingSession() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        with TestClient(app) as client:
+            exam = client.post("/api/demo/reset").json()["exams"][0]
+            response = client.delete(f"/api/exams/{exam['id']}")
+            overview = client.get("/api/overview").json()
+        assert response.status_code == 204
+        assert overview["exams"] == []
     finally:
         app.dependency_overrides.clear()

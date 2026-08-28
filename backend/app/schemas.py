@@ -22,13 +22,26 @@ class EventRead(EventCreate):
     id: int
 
 
+class EventTimeUpdate(BaseModel):
+    starts_at: datetime
+    ends_at: datetime
+
+    @model_validator(mode="after")
+    def validate_times(self):
+        if self.ends_at <= self.starts_at:
+            raise ValueError("종료 시간은 시작 시간보다 늦어야 합니다.")
+        return self
+
+
 class ExamCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=120)
     exam_date: date
+    exam_time: str = Field(default="09:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     scope_start: int = Field(ge=0)
     scope_end: int = Field(gt=0)
     scope_unit: str = Field(default="페이지", max_length=20)
     target_passes: float = Field(default=1.0, ge=1.0, le=5.0)
+    priority_chapters: str = Field(default="", max_length=2000)
 
     @model_validator(mode="after")
     def validate_scope(self):
@@ -40,6 +53,19 @@ class ExamCreate(BaseModel):
 class CheckInCreate(BaseModel):
     result: Literal["COMPLETED", "PARTIAL", "MISSED"]
     actual_scope_end: int | None = None
+
+
+class TaskTimeUpdate(BaseModel):
+    suggested_start_time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    suggested_end_time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+    @model_validator(mode="after")
+    def validate_times(self):
+        start = datetime.strptime(self.suggested_start_time, "%H:%M")
+        end = datetime.strptime(self.suggested_end_time, "%H:%M")
+        if end <= start:
+            raise ValueError("종료 시간은 시작 시간보다 늦어야 합니다.")
+        return self
 
 
 class TaskRead(BaseModel):
@@ -61,6 +87,7 @@ class ExamRead(BaseModel):
     id: int
     subject: str
     exam_date: date
+    exam_time: str
     scope_start: int
     scope_end: int
     scope_unit: str
@@ -69,6 +96,9 @@ class ExamRead(BaseModel):
     forecast_passes: float
     plan_version: int
     ai_summary: str
+    priority_chapters: str
+    last_replan_summary: str
+    pace_advice: str
     tasks: list[TaskRead]
 
 
@@ -82,4 +112,8 @@ class CheckInResponse(BaseModel):
     previous_version: int
     new_version: int
     changed_tasks: int
+    performance_delta: int
+    projected_passes: float
+    replan_explanation: str
+    recommendation: str
     exam: ExamRead
