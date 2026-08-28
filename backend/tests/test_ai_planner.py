@@ -7,6 +7,7 @@ from app.ai_planner import generate_study_plan
 class FakeResponses:
     def create(self, **kwargs):
         assert kwargs["text"]["format"]["type"] == "json_schema"
+        assert kwargs["reasoning"] == {"effort": "none"}
         payload = {
             "summary": "수업을 피해 저녁에 10페이지를 학습합니다.",
             "tasks": [{

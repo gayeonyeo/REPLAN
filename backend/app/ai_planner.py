@@ -105,6 +105,7 @@ def generate_study_plan(
             model=OPENAI_MODEL,
             instructions=instructions,
             input=json.dumps(payload, ensure_ascii=False),
+            reasoning={"effort": "none"},
             text={
                 "format": {
                     "type": "json_schema",

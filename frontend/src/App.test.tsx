@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import App from './App'
 import CalendarPage from './pages/CalendarPage'
+import ExamRegister from './pages/ExamRegister'
 
 vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [], exams: [] }) })))
 
@@ -12,19 +13,31 @@ test('renders the RE:PLAN dashboard', async () => {
   await waitFor(() => expect(screen.getByText('아직 등록된 시험이 없습니다.')).toBeInTheDocument())
 })
 
-test('opens a daily timetable from the monthly calendar', async () => {
+test('shows monthly and daily calendars together', async () => {
   await act(async () => { render(<MemoryRouter><CalendarPage/></MemoryRouter>) })
-  expect(screen.getByRole('button', { name: '월' })).toHaveClass('active')
+  expect(screen.getByRole('button', { name: '월 + 일' })).toHaveClass('active')
+  expect(screen.getByText(/블록 이동/)).toBeInTheDocument()
   const today = new Date().getDate().toString()
   const dayButtons = screen.getAllByRole('button', { name: new RegExp(`^${today}`) })
   fireEvent.click(dayButtons[0])
-  expect(screen.getByRole('button', { name: '일' })).toHaveClass('active')
-  expect(screen.getByText(/블록 위를 잡아 이동/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '월 + 일' })).toHaveClass('active')
 })
 
 test('switches to the weekly calendar', async () => {
   await act(async () => { render(<MemoryRouter><CalendarPage/></MemoryRouter>) })
-  fireEvent.click(screen.getByRole('button', { name: '주' }))
-  expect(screen.getByRole('button', { name: '주' })).toHaveClass('active')
+  fireEvent.click(screen.getByRole('button', { name: '주간' }))
+  expect(screen.getByRole('button', { name: '주간' })).toHaveClass('active')
   expect(screen.getAllByRole('button', { name: /월|화|수|목|금|토|일/ }).length).toBeGreaterThan(1)
+})
+
+test('shows planning status only while an exam plan request is running', async () => {
+  let finish!: (value: Response) => void
+  vi.mocked(fetch).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  render(<MemoryRouter><ExamRegister/></MemoryRouter>)
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('과목명'), { target: { value: '생리학' } })
+  fireEvent.click(screen.getByRole('button', { name: 'RE:PLAN 만들기' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('계획 생성 중')
+  finish(new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } }))
+  await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
 })

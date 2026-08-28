@@ -9,7 +9,8 @@ export default function ExamRegister() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ subject: '', exam_date: futureDate(), exam_time: '09:00', scope_start: 1, scope_end: 200, scope_unit: '페이지', target_passes: 2, priority_chapters: '' })
   const [error, setError] = useState('')
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); try { await api.createExam(form); navigate('/') } catch (reason) { setError((reason as Error).message) } }
+  const [planning, setPlanning] = useState(false)
+  const submit = async (event: React.FormEvent) => { event.preventDefault(); setPlanning(true); setError(''); try { await api.createExam(form); navigate('/') } catch (reason) { setError((reason as Error).message) } finally { setPlanning(false) } }
   return <Layout>
     <header className="page-header"><span className="kicker">PLAN A NEW EXAM</span><h1>시험과 우선순위를<br/>함께 알려주세요.</h1><p>같은 날 여러 시험도 시간별로 등록할 수 있고, 교수님이 강조한 범위는 AI 계획에서 먼저 고려합니다.</p></header>
     {error && <div className="notice error">{error}</div>}
@@ -24,7 +25,8 @@ export default function ExamRegister() {
         <label>범위 끝<input required type="number" min="1" value={form.scope_end} onChange={event => setForm({ ...form, scope_end: Number(event.target.value) })}/></label>
         <label className="wide">우선할 챕터·범위<textarea value={form.priority_chapters} onChange={event => setForm({ ...form, priority_chapters: event.target.value })} placeholder="예: 3장은 교수님이 특히 강조, 7장은 언급만 함" rows={4}/><small>강조 이유까지 적으면 계획 우선순위를 더 정확하게 잡을 수 있어요.</small></label>
       </div>
-      <div className="form-footer"><p>고정 일정과 다른 시험의 학습 블록을 피해 겹치지 않게 계획합니다.</p><button className="btn btn-primary">RE:PLAN 만들기</button></div>
+      <div className="form-footer"><p>고정 일정과 다른 시험의 학습 블록을 피해 겹치지 않게 계획합니다.</p><button className="btn btn-primary" disabled={planning}>{planning ? '계획 생성 중…' : 'RE:PLAN 만들기'}</button></div>
     </form>
+    {planning && <div className="planning-overlay" role="status" aria-live="polite"><div className="planning-card"><i/><b>계획 생성 중</b><p>시험 범위와 빈 시간을 빠르게 배분하고 있어요.</p></div></div>}
   </Layout>
 }
