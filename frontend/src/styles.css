@@ -1,0 +1,33 @@
+:root {
+  font-family: Inter, Pretendard, system-ui, sans-serif;
+  color: #172032;
+  background: #f4f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.eyebrow {
+  color: #5b67e8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+h1 {
+  margin: 0.5rem 0;
+}
+

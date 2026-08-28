@@ -226,14 +226,16 @@ forecastPasses = currentPasses
 
 ## 8. 기술 구성 제안
 
-제한 시간 MVP 기준 권장 구성:
+확정된 MVP 기술 구성:
 
 - 프런트엔드: React + TypeScript + Vite
 - UI: 접근 가능한 컴포넌트 라이브러리 + 캘린더 라이브러리
-- 백엔드: Node.js + TypeScript
-- 데이터베이스: SQLite(로컬 시연) 또는 PostgreSQL(배포)
-- ORM: Prisma 또는 Drizzle
-- 테스트: Vitest 기반 재계획 엔진 단위 테스트 + 핵심 흐름 E2E 1개
+- 백엔드: Python + FastAPI
+- 데이터베이스: SQLite
+- ORM / 마이그레이션: SQLAlchemy + Alembic
+- 테스트: Vitest + pytest + 핵심 흐름 E2E 1개
+- 패키지 관리: npm + pip
+- 기본 시간대: `Asia/Seoul`
 
 재계획 엔진은 UI·DB와 분리된 순수 함수 모듈로 작성해 예제 입력으로 결과를 즉시 검증할 수 있게 한다.
 
@@ -270,4 +272,3 @@ AI 출력은 스키마 검증을 통과해야 하며, 범위·날짜·수용량 
 - 초기 데이터 부족: 보수적 기본값과 사용자 입력값을 혼합하고 표본 수를 표시한다.
 - 과도한 재계획으로 혼란: 하루 체크인 후 한 번 재계획하고 변경 요약을 제공한다.
 - 계획이 불가능한데 양을 밀어 넣음: 수용량 상한을 지키고 부족량과 대안을 명시한다.
-
