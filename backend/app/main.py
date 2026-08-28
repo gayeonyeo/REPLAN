@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -51,6 +52,51 @@ def forecast_passes(db: Session, exam: Exam) -> float:
     return round((done + daily_rate * remaining_days) / scope_size(exam), 2)
 
 
+def build_learning_profile(db: Session, subject: str) -> dict[str, object]:
+    """Summarize stored check-ins without sending raw log rows to OpenAI."""
+    rows = db.execute(
+        select(StudyLog, StudyTask, Exam)
+        .join(StudyTask, StudyLog.task_id == StudyTask.id)
+        .join(Exam, StudyTask.exam_id == Exam.id)
+        .order_by(StudyLog.recorded_at, StudyLog.id)
+    ).all()
+    subject_rows = [row for row in rows if row.Exam.subject == subject]
+    selected = subject_rows if len(subject_rows) >= 2 else rows
+    sample_size = len(selected)
+    if sample_size == 0:
+        return {"confidence": "none", "sample_size": 0, "subject_sample_size": 0}
+
+    def ratio(row) -> float:
+        return row.StudyLog.completed_units / max(1, row.StudyTask.planned_units)
+
+    ratios = [ratio(row) for row in selected]
+    recent = ratios[-5:]
+    weekday_scores: dict[str, list[float]] = defaultdict(list)
+    window_scores: dict[str, list[float]] = defaultdict(list)
+    weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+    for row in selected:
+        weekday_scores[weekday_names[row.StudyTask.study_date.weekday()]].append(ratio(row))
+        hour = int(row.StudyTask.suggested_start_time[:2])
+        window = "오전(06-12)" if hour < 12 else "오후(12-18)" if hour < 18 else "저녁(18-24)"
+        window_scores[window].append(ratio(row))
+
+    ranked_weekdays = sorted(weekday_scores, key=lambda key: sum(weekday_scores[key]) / len(weekday_scores[key]), reverse=True)
+    ranked_windows = sorted(window_scores, key=lambda key: sum(window_scores[key]) / len(window_scores[key]), reverse=True)
+    confidence = "high" if sample_size >= 8 else "medium" if sample_size >= 3 else "low"
+    return {
+        "confidence": confidence,
+        "profile_scope": "same_subject" if len(subject_rows) >= 2 else "all_subjects",
+        "sample_size": sample_size,
+        "subject_sample_size": len(subject_rows),
+        "completion_rate": round(sum(row.StudyLog.result == "COMPLETED" for row in selected) / sample_size, 2),
+        "average_completion_ratio": round(sum(ratios) / sample_size, 2),
+        "recent_completion_ratio": round(sum(recent) / len(recent), 2),
+        "average_completed_units": round(sum(row.StudyLog.completed_units for row in selected) / sample_size, 1),
+        "strongest_weekdays": ranked_weekdays[:2],
+        "strongest_time_windows": ranked_windows[:2],
+    }
+
+
 def _minutes(value: str) -> int:
     hour, minute = map(int, value.split(":"))
     return hour * 60 + minute
@@ -99,6 +145,7 @@ def create_openai_tasks(db: Session, exam: Exam, start_date: date) -> int:
     other_tasks = db.scalars(select(StudyTask).where(StudyTask.status == "PLANNED", StudyTask.exam_id != exam.id)).all()
     blocking = [{"title": event.title, "starts_at": event.starts_at.isoformat(), "ends_at": event.ends_at.isoformat()} for event in events]
     blocking.extend({"title": "다른 시험 학습 계획", "starts_at": f"{task.study_date.isoformat()}T{task.suggested_start_time}:00", "ends_at": f"{task.study_date.isoformat()}T{task.suggested_end_time}:00"} for task in other_tasks)
+    profile = build_learning_profile(db, exam.subject)
     plan = generate_study_plan(
         subject=exam.subject,
         exam_date=exam.exam_date,
@@ -110,8 +157,13 @@ def create_openai_tasks(db: Session, exam: Exam, start_date: date) -> int:
         start_date=start_date,
         events=blocking,
         priority_chapters=exam.priority_chapters,
+        learning_profile=profile,
     )
-    exam.ai_summary = plan.summary
+    if profile["sample_size"]:
+        window = (profile.get("strongest_time_windows") or ["아직 확인 중"])[0]
+        exam.ai_summary = f"{plan.summary} (실제 기록 {profile['sample_size']}회, 수행 비율 {profile['average_completion_ratio']}, 선호 시간대 {window} 반영)"
+    else:
+        exam.ai_summary = plan.summary
     occupied_by_day: dict[date, list[tuple[int, int]]] = {}
     for event in events:
         occupied_by_day.setdefault(event.starts_at.date(), []).append((event.starts_at.hour * 60 + event.starts_at.minute, event.ends_at.hour * 60 + event.ends_at.minute))

@@ -1,11 +1,13 @@
+from datetime import date
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.database import Base, get_db
-from app.main import app
-from app.models import StudyTask
+from app.main import app, build_learning_profile
+from app.models import Exam, StudyLog, StudyTask
 
 
 def fake_openai_tasks(db, exam, start_date):
@@ -113,3 +115,31 @@ def test_weekly_recurring_event_creates_each_occurrence() -> None:
         assert len(overview["events"]) == 4
     finally:
         app.dependency_overrides.clear()
+
+
+def test_learning_profile_uses_check_in_history() -> None:
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    TestingSession = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+    with TestingSession() as db:
+        exam = Exam(subject="생화학", exam_date=date.today(), scope_start=1, scope_end=100)
+        db.add(exam)
+        db.flush()
+        tasks = [
+            StudyTask(exam_id=exam.id, study_date=date(2026, 8, 24), pass_number=1, scope_start=1, scope_end=20, planned_units=20, status="COMPLETED", suggested_start_time="19:00", suggested_end_time="20:00"),
+            StudyTask(exam_id=exam.id, study_date=date(2026, 8, 26), pass_number=1, scope_start=21, scope_end=40, planned_units=20, status="PARTIAL", suggested_start_time="19:00", suggested_end_time="20:00"),
+            StudyTask(exam_id=exam.id, study_date=date(2026, 8, 27), pass_number=1, scope_start=41, scope_end=60, planned_units=20, status="COMPLETED", suggested_start_time="10:00", suggested_end_time="11:00"),
+        ]
+        db.add_all(tasks)
+        db.flush()
+        db.add_all([
+            StudyLog(task_id=tasks[0].id, result="COMPLETED", completed_units=20),
+            StudyLog(task_id=tasks[1].id, result="PARTIAL", completed_units=10),
+            StudyLog(task_id=tasks[2].id, result="COMPLETED", completed_units=20),
+        ])
+        db.flush()
+        profile = build_learning_profile(db, "생화학")
+    assert profile["confidence"] == "medium"
+    assert profile["sample_size"] == 3
+    assert profile["average_completion_ratio"] == 0.83
+    assert "저녁(18-24)" in profile["strongest_time_windows"]

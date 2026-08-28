@@ -64,6 +64,7 @@ def generate_study_plan(
     start_date: date,
     events: list[dict[str, str]],
     priority_chapters: str = "",
+    learning_profile: dict[str, object] | None = None,
 ) -> AIStudyPlan:
     if not OPENAI_API_KEY:
         raise OpenAIPlannerError("OPENAI_API_KEY가 설정되지 않았습니다. backend/.env에 API 키를 입력해 주세요.")
@@ -90,6 +91,7 @@ def generate_study_plan(
             "remaining_units_across_passes": remaining_units,
         },
         "blocking_events": events,
+        "learning_profile": learning_profile or {"confidence": "none", "sample_size": 0},
     }
     instructions = (
         "당신은 대학생 시험 계획을 만드는 일정 최적화 엔진이다. "
@@ -98,6 +100,11 @@ def generate_study_plan(
         "priority_chapters가 있으면 강조된 범위를 앞쪽 날짜와 집중하기 좋은 시간에 우선 배치하라. "
         "범위를 회독 순서대로 빠짐없이 배정하고 같은 회독 안에서 중복시키지 마라. "
         "고정 일정이 많은 날은 학습량을 줄이고 가능한 시간대를 suggested time으로 제시하라. "
+        "learning_profile은 저장된 실제 수행 기록의 요약이다. confidence가 medium 또는 high이면 "
+        "완료율, 최근 수행 비율, 잘 수행한 요일과 시간대를 날짜별 분량과 suggested time에 적극 반영하라. "
+        "평균 수행 비율이 낮으면 한 번의 분량을 작게 나누고, 높으면 감당 가능한 범위에서 블록 분량을 늘려라. "
+        "confidence가 none 또는 low이면 패턴을 확정적으로 가정하지 말고 보조 정보로만 사용하라. "
+        "개인화하더라도 남은 목표 총량을 줄이거나 범위를 생략해서는 안 된다. "
         "출력은 제공된 JSON schema를 정확히 따라야 한다."
     )
     try:

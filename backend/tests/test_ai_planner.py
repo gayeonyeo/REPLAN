@@ -5,9 +5,12 @@ from app.ai_planner import generate_study_plan
 
 
 class FakeResponses:
+    last_payload = None
+
     def create(self, **kwargs):
         assert kwargs["text"]["format"]["type"] == "json_schema"
         assert kwargs["reasoning"] == {"effort": "minimal"}
+        FakeResponses.last_payload = json.loads(kwargs["input"])
         payload = {
             "summary": "수업을 피해 저녁에 10페이지를 학습합니다.",
             "tasks": [{
@@ -41,6 +44,8 @@ def test_openai_structured_plan(monkeypatch) -> None:
         completed_units=0,
         start_date=date.today(),
         events=[],
+        learning_profile={"confidence": "medium", "sample_size": 4, "average_completion_ratio": 0.8},
     )
     assert plan.tasks[0].suggested_start_time == "19:00"
     assert plan.tasks[0].scope_end == 10
+    assert FakeResponses.last_payload["learning_profile"]["average_completion_ratio"] == 0.8
