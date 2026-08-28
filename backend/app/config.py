@@ -1,13 +1,10 @@
+from pathlib import Path
 import os
-from dataclasses import dataclass
+
+from dotenv import load_dotenv
 
 
-@dataclass(frozen=True)
-class Settings:
-    app_env: str = os.getenv("APP_ENV", "development")
-    app_timezone: str = os.getenv("APP_TIMEZONE", "Asia/Seoul")
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./nexus.db")
-
-
-settings = Settings()
-
+load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'nexus.db'}")
+TIMEZONE = os.getenv("TIMEZONE", "Asia/Seoul")

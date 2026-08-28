@@ -1,2 +1,1 @@
-"""Nexus backend application package."""
-
+"""Nexus backend application."""

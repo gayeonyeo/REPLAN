@@ -1,35 +1,24 @@
-# Environment and secrets
-.env
-.env.*
-!.env.example
-
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.pytest_cache/
-.coverage
-htmlcov/
 .venv/
-venv/
-.packages/
-
-# SQLite runtime data
 *.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
 
-# Node / Vite
+# Node
 node_modules/
-frontend/dist/
-frontend/coverage/
-*.local
-*.tsbuildinfo
+dist/
 
-# Editors and OS
-.idea/
+# Environment
+.env
+
+# IDE / OS
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
+
+# Test / Build
+.pytest_cache/
+coverage/
+*.tsbuildinfo

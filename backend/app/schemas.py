@@ -1,0 +1,82 @@
+from datetime import date, datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class EventCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    event_type: Literal["CLASS", "WORK", "APPOINTMENT", "OTHER"] = "OTHER"
+    starts_at: datetime
+    ends_at: datetime
+
+    @model_validator(mode="after")
+    def validate_times(self):
+        if self.ends_at <= self.starts_at:
+            raise ValueError("종료 시간은 시작 시간보다 늦어야 합니다.")
+        return self
+
+
+class EventRead(EventCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
+class ExamCreate(BaseModel):
+    subject: str = Field(min_length=1, max_length=120)
+    exam_date: date
+    scope_start: int = Field(ge=0)
+    scope_end: int = Field(gt=0)
+    scope_unit: str = Field(default="페이지", max_length=20)
+    target_passes: float = Field(default=1.0, ge=1.0, le=5.0)
+
+    @model_validator(mode="after")
+    def validate_scope(self):
+        if self.scope_end < self.scope_start:
+            raise ValueError("범위 끝은 시작보다 크거나 같아야 합니다.")
+        return self
+
+
+class CheckInCreate(BaseModel):
+    result: Literal["COMPLETED", "PARTIAL", "MISSED"]
+    actual_scope_end: int | None = None
+
+
+class TaskRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    exam_id: int
+    study_date: date
+    pass_number: int
+    scope_start: int
+    scope_end: int
+    planned_units: int
+    status: str
+    plan_version: int
+
+
+class ExamRead(BaseModel):
+    id: int
+    subject: str
+    exam_date: date
+    scope_start: int
+    scope_end: int
+    scope_unit: str
+    target_passes: float
+    current_passes: float
+    forecast_passes: float
+    plan_version: int
+    tasks: list[TaskRead]
+
+
+class OverviewRead(BaseModel):
+    events: list[EventRead]
+    exams: list[ExamRead]
+
+
+class CheckInResponse(BaseModel):
+    message: str
+    previous_version: int
+    new_version: int
+    changed_tasks: int
+    exam: ExamRead

@@ -27,6 +27,16 @@ Nexus는 다음 원칙으로 이 문제를 해결한다.
 
 자연어 일정 입력, 알림, 감정·컨디션 체크인, 상세 분석은 MVP 이후로 미룬다.
 
+## 지금 작동하는 기능
+
+- 수업·아르바이트·약속 등 고정 일정 등록
+- 시험일, 숫자 범위, 단위, 목표 회독 등록
+- 고정 일정이 긴 날의 공부량을 줄이는 날짜별 자동 배분
+- 대시보드의 현재 회독, 예상 회독, 남은 계획 표시
+- 완료·일부 완료·미완료 체크인
+- 일부 완료 지점을 반영한 미래 계획 전체 재생성 및 버전 표시
+- 한 번에 핵심 시나리오를 체험하는 `30초 데모 시작`
+
 ## 핵심 시연 흐름
 
 1. 이미 수업과 아르바이트가 있는 캘린더에 시험과 범위를 등록한다.
@@ -71,6 +81,28 @@ Nexus는 다음 원칙으로 이 문제를 해결한다.
 
 ## 로컬 실행
 
+### 가장 빠른 실행 순서
+
+터미널 두 개를 연다. 첫 번째 터미널에서 백엔드를 먼저 실행한다.
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+python -m uvicorn app.main:app --reload
+```
+
+두 번째 터미널에서 프런트엔드를 실행한다.
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+브라우저에서 `http://localhost:5173`을 열고 `30초 데모 시작`을 누른다. 표시된 첫 공부 계획에서 `일부`를 선택해 실제 완료 지점을 입력하면 계획 버전과 이후 날짜의 범위가 바뀐다.
+
 ### 사전 요구사항
 
 - Node.js 20 이상과 npm
@@ -78,7 +110,7 @@ Nexus는 다음 원칙으로 이 문제를 해결한다.
 
 ### 환경 변수
 
-Phase 0에서는 API 키가 필요하지 않다. 필요하면 루트의 `.env.example`을 `.env`로 복사해 로컬 값을 수정한다. `.env`는 Git에 포함되지 않는다.
+현재 MVP에서는 API 키가 필요하지 않다. 필요하면 루트의 `.env.example`을 `.env`로 복사해 로컬 값을 수정한다. `.env`는 Git에 포함되지 않는다.
 
 ### 프런트엔드
 
@@ -140,14 +172,14 @@ python -m alembic revision --autogenerate -m "describe change"
 python -m alembic upgrade head
 ```
 
-현재는 도메인 테이블이 아직 없어 초기 revision을 만들지 않았다. Phase 1에서 모델과 함께 첫 마이그레이션을 생성한다.
+첫 migration인 `0001_create_study_planner_tables.py`가 포함되어 있다. 개발 서버는 빈 SQLite DB에서 필요한 테이블을 자동 생성한다.
 
 > 일부 Windows Python 배포판에서 한글이 포함된 경로의 가상환경 생성이 실패할 수 있다. 이 경우 저장소를 영문 경로에 clone하거나, 영문 경로에 가상환경을 만든 뒤 활성화하고 `backend/requirements-dev.txt`를 설치한다.
 
 ## 저장소 상태
 
-- 현재 단계: Phase 0 완료
+- 현재 단계: 핵심 MVP 동작
 - 기준 브랜치: `main`
 - 원격 저장소: `https://github.com/gayeonyeo/nexus.git`
-- 프런트엔드, 백엔드, DB 및 테스트 기반 구성 완료
+- 고정 일정·시험 등록·계획 생성·체크인·자동 재계획 연결 완료
 - 기존 `ai-여행-플래너/`: 별도 프로젝트로 판단하여 변경하지 않음
