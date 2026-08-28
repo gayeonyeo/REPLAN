@@ -89,6 +89,8 @@ def generate_study_plan(
         "progress": {
             "completed_units_across_passes": completed_units,
             "remaining_units_across_passes": remaining_units,
+            "required_next_pass_number": completed_units // scope_size + 1,
+            "required_next_scope_start": scope_start + completed_units % scope_size,
         },
         "blocking_events": events,
         "learning_profile": learning_profile or {"confidence": "none", "sample_size": 0},
@@ -129,8 +131,75 @@ def generate_study_plan(
         raise OpenAIPlannerError(f"OpenAI API 호출에 실패했습니다: {exc}") from exc
 
     plan.tasks.sort(key=lambda task: (task.study_date, task.suggested_start_time, task.pass_number, task.scope_start))
+    plan, repaired = _normalize_plan_ranges(plan, start_date, exam_date, scope_start, scope_end, completed_units, remaining_units)
+    if repaired:
+        plan.summary = f"{plan.summary} 범위의 누락·중복은 현재 진도에 맞춰 자동 보정했습니다."
     _validate_plan(plan, start_date, exam_date, scope_start, scope_end, completed_units, remaining_units)
     return plan
+
+
+def _normalize_plan_ranges(
+    plan: AIStudyPlan,
+    start_date: date,
+    exam_date: date,
+    scope_start: int,
+    scope_end: int,
+    completed_units: int,
+    expected_units: int,
+) -> tuple[AIStudyPlan, bool]:
+    """Keep GPT's schedule and chunk proportions while rebuilding a continuous range sequence."""
+    if not plan.tasks:
+        raise OpenAIPlannerError("OpenAI 계획에 공부 일정이 없습니다.")
+    for task in plan.tasks:
+        if not start_date <= task.study_date < exam_date:
+            raise OpenAIPlannerError("OpenAI 계획에 시험 기간 밖의 날짜가 포함됐습니다.")
+        try:
+            start_time = datetime.strptime(task.suggested_start_time, "%H:%M")
+            end_time = datetime.strptime(task.suggested_end_time, "%H:%M")
+        except ValueError as exc:
+            raise OpenAIPlannerError("OpenAI 계획의 시간 형식이 올바르지 않습니다.") from exc
+        if end_time <= start_time:
+            raise OpenAIPlannerError("OpenAI 계획의 종료 시간이 시작 시간보다 빠릅니다.")
+
+    original = [(task.pass_number, task.scope_start, task.scope_end) for task in plan.tasks]
+    source_tasks = plan.tasks[:min(len(plan.tasks), expected_units)]
+    weights = [max(1, task.scope_end - task.scope_start + 1) for task in source_tasks]
+    allocations: list[int] = []
+    remaining = expected_units
+    remaining_weight = sum(weights)
+    for index, weight in enumerate(weights):
+        tasks_left = len(weights) - index - 1
+        if tasks_left == 0:
+            allocation = remaining
+        else:
+            allocation = max(1, round(remaining * weight / remaining_weight))
+            allocation = min(allocation, remaining - tasks_left)
+        allocations.append(allocation)
+        remaining -= allocation
+        remaining_weight -= weight
+
+    normalized: list[AIPlanTask] = []
+    scope_length = scope_end - scope_start + 1
+    offset = completed_units
+    for source, allocation in zip(source_tasks, allocations):
+        units_left = allocation
+        while units_left:
+            pass_number = offset // scope_length + 1
+            next_start = scope_start + offset % scope_length
+            units = min(units_left, scope_end - next_start + 1)
+            normalized.append(AIPlanTask(
+                study_date=source.study_date,
+                pass_number=pass_number,
+                scope_start=next_start,
+                scope_end=next_start + units - 1,
+                suggested_start_time=source.suggested_start_time,
+                suggested_end_time=source.suggested_end_time,
+            ))
+            offset += units
+            units_left -= units
+
+    repaired = original != [(task.pass_number, task.scope_start, task.scope_end) for task in normalized]
+    return AIStudyPlan(summary=plan.summary, tasks=normalized), repaired
 
 
 def _validate_plan(plan: AIStudyPlan, start_date: date, exam_date: date, scope_start: int, scope_end: int, completed_units: int, expected_units: int) -> None:

@@ -1,7 +1,7 @@
 import json
 from datetime import date, timedelta
 
-from app.ai_planner import generate_study_plan
+from app.ai_planner import AIPlanTask, AIStudyPlan, _normalize_plan_ranges, generate_study_plan
 
 
 class FakeResponses:
@@ -49,3 +49,21 @@ def test_openai_structured_plan(monkeypatch) -> None:
     assert plan.tasks[0].suggested_start_time == "19:00"
     assert plan.tasks[0].scope_end == 10
     assert FakeResponses.last_payload["learning_profile"]["average_completion_ratio"] == 0.8
+    assert FakeResponses.last_payload["progress"]["required_next_scope_start"] == 1
+
+
+def test_replan_range_gaps_are_normalized_from_completed_progress() -> None:
+    today = date.today()
+    malformed = AIStudyPlan(summary="개인화 일정", tasks=[
+        AIPlanTask(study_date=today, pass_number=1, scope_start=15, scope_end=20, suggested_start_time="19:00", suggested_end_time="20:00"),
+        AIPlanTask(study_date=today + timedelta(days=1), pass_number=2, scope_start=3, scope_end=8, suggested_start_time="19:00", suggested_end_time="20:00"),
+    ])
+    normalized, repaired = _normalize_plan_ranges(
+        malformed, today, today + timedelta(days=3), 1, 10,
+        completed_units=4, expected_units=16,
+    )
+    assert repaired is True
+    assert [(task.pass_number, task.scope_start, task.scope_end) for task in normalized.tasks] == [
+        (1, 5, 10), (2, 1, 2), (2, 3, 10),
+    ]
+    assert sum(task.scope_end - task.scope_start + 1 for task in normalized.tasks) == 16
