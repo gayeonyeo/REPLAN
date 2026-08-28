@@ -53,6 +53,8 @@ class TaskRead(BaseModel):
     planned_units: int
     status: str
     plan_version: int
+    suggested_start_time: str
+    suggested_end_time: str
 
 
 class ExamRead(BaseModel):
@@ -66,6 +68,7 @@ class ExamRead(BaseModel):
     current_passes: float
     forecast_passes: float
     plan_version: int
+    ai_summary: str
     tasks: list[TaskRead]
 
 

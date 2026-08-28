@@ -1,0 +1,42 @@
+.calendar-actions { display: flex; gap: 8px; }
+.month-calendar, .day-calendar { background: var(--paper); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
+.month-toolbar { height: 70px; display: flex; align-items: center; justify-content: center; gap: 24px; border-bottom: 1px solid var(--line); }
+.month-toolbar h2 { margin: 0; min-width: 170px; text-align: center; }
+.month-toolbar button { width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: white; font-size: 24px; cursor: pointer; }
+.weekday-row, .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.weekday-row { border-bottom: 1px solid var(--line); }
+.weekday-row span { padding: 11px; text-align: center; color: var(--muted); font-size: 12px; }
+.weekday-row span:first-child { color: #c75b4a; }
+.month-day { height: 132px; padding: 10px; border: 0; border-right: 1px solid #eceee8; border-bottom: 1px solid #eceee8; background: white; text-align: left; cursor: pointer; overflow: hidden; }
+.month-day:nth-child(7n) { border-right: 0; }
+.month-day.outside { background: #f7f7f2; color: #a9afa9; }
+.month-day:hover { background: #f2f7e8; }
+.day-number { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 600; }
+.month-day.today .day-number { background: var(--green); color: white; }
+.month-events { display: grid; gap: 4px; margin-top: 5px; }
+.month-event { display: block; min-width: 0; padding: 3px 6px; border-radius: 6px; background: #eef3e9; color: #315b43; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.month-event i { display: inline-block; width: 5px; height: 5px; margin-right: 4px; border-radius: 50%; background: #5f8e6e; }
+.month-event.event { background: #fff0e8; color: #954d30; }
+.month-event.event i { background: var(--orange); }
+.month-event.completed { text-decoration: line-through; opacity: .58; }
+.month-events small { font-size: 10px; color: var(--muted); padding-left: 5px; }
+.day-title { display: flex; align-items: center; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.day-title > div { display: flex; align-items: center; gap: 10px; }
+.day-title span { color: var(--muted); font-size: 12px; }
+.day-title strong { font-size: 34px; }
+.day-title p { color: var(--muted); }
+.timeline { display: grid; grid-template-columns: 76px 1fr; height: 1216px; overflow: auto; }
+.time-axis { position: relative; border-right: 1px solid var(--line); }
+.time-axis span { position: relative; display: block; height: 64px; padding: 7px 12px; text-align: right; color: var(--muted); font-size: 11px; }
+.time-track { position: relative; background: linear-gradient(90deg, #fff, #fcfcf8); }
+.hour-line { position: absolute; left: 0; right: 0; border-top: 1px solid #e9ebe5; }
+.time-block { position: absolute; left: 18px; right: 18px; z-index: 2; display: flex; flex-direction: column; padding: 8px 12px; border-radius: 10px; border-left: 4px solid #5d8f6e; background: #e7f1e7; overflow: hidden; box-shadow: 0 3px 10px rgba(21,45,32,.08); }
+.time-block.event { border-left-color: var(--orange); background: #fff0e8; }
+.time-block.completed { text-decoration: line-through; opacity: .58; }
+.time-block.partial { border-left-color: #d59b27; background: #fff6d9; }
+.time-block.missed { border-left-color: #bd5d51; background: #fbe6e2; }
+.time-block span, .time-block small { font-size: 10px; color: var(--muted); }
+.time-block strong { font-size: 13px; }
+.day-empty { position: absolute; top: 40px; left: 20px; color: var(--muted); }
+.ai-summary { margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: #f1f5e8; color: #46604e; font-size: 12px; line-height: 1.5; }
+@media (max-width: 800px) { .month-day { height: 92px; padding: 5px; } .month-event { font-size: 0; height: 7px; padding: 0; } .month-event i { display: none; } .weekday-row span { padding: 8px 2px; } .day-number { width: 24px; height: 24px; font-size: 12px; } .calendar-actions { flex-wrap: wrap; } .timeline { grid-template-columns: 58px 1fr; } }

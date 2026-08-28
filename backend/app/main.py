@@ -6,15 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.config import TIMEZONE
-from app.database import Base, engine, get_db
+from app.ai_planner import OpenAIPlannerError, generate_study_plan
+from app.config import OPENAI_API_KEY, OPENAI_MODEL, TIMEZONE
+from app.database import Base, engine, get_db, migrate_runtime_schema
 from app.models import CalendarEvent, Exam, StudyLog, StudyTask
-from app.planner import build_tasks, completed_units, forecast_passes, generate_initial_plan, scope_size
 from app.schemas import CheckInCreate, CheckInResponse, EventCreate, EventRead, ExamCreate, ExamRead, OverviewRead, TaskRead
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    migrate_runtime_schema()
     yield
 
 
@@ -23,13 +24,59 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 
 
 @app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok", "timezone": TIMEZONE}
+def health_check() -> dict[str, str | bool]:
+    return {"status": "ok", "timezone": TIMEZONE, "openai_configured": bool(OPENAI_API_KEY), "openai_model": OPENAI_MODEL}
+
+
+def scope_size(exam: Exam) -> int:
+    return exam.scope_end - exam.scope_start + 1
+
+
+def completed_units(db: Session, exam_id: int) -> int:
+    logs = db.scalars(select(StudyLog).join(StudyTask).where(StudyTask.exam_id == exam_id)).all()
+    return sum(log.completed_units for log in logs)
+
+
+def forecast_passes(db: Session, exam: Exam) -> float:
+    done = completed_units(db, exam.id)
+    future = sum(task.planned_units for task in exam.tasks if task.status == "PLANNED")
+    return round(min(exam.target_passes, (done + future) / scope_size(exam)), 2)
+
+
+def create_openai_tasks(db: Session, exam: Exam, start_date: date) -> int:
+    events = db.scalars(select(CalendarEvent).where(CalendarEvent.starts_at < datetime.combine(exam.exam_date, datetime.min.time()))).all()
+    plan = generate_study_plan(
+        subject=exam.subject,
+        exam_date=exam.exam_date,
+        scope_start=exam.scope_start,
+        scope_end=exam.scope_end,
+        scope_unit=exam.scope_unit,
+        target_passes=exam.target_passes,
+        completed_units=completed_units(db, exam.id),
+        start_date=start_date,
+        events=[{"title": event.title, "starts_at": event.starts_at.isoformat(), "ends_at": event.ends_at.isoformat()} for event in events],
+    )
+    exam.ai_summary = plan.summary
+    for item in plan.tasks:
+        db.add(StudyTask(
+            exam_id=exam.id,
+            study_date=item.study_date,
+            pass_number=item.pass_number,
+            scope_start=item.scope_start,
+            scope_end=item.scope_end,
+            planned_units=item.scope_end - item.scope_start + 1,
+            status="PLANNED",
+            plan_version=exam.plan_version,
+            suggested_start_time=item.suggested_start_time,
+            suggested_end_time=item.suggested_end_time,
+        ))
+    db.flush()
+    return len(plan.tasks)
 
 
 def serialize_exam(db: Session, exam: Exam) -> ExamRead:
     done = completed_units(db, exam.id)
-    return ExamRead(id=exam.id, subject=exam.subject, exam_date=exam.exam_date, scope_start=exam.scope_start, scope_end=exam.scope_end, scope_unit=exam.scope_unit, target_passes=exam.target_passes, current_passes=round(done / scope_size(exam), 2), forecast_passes=forecast_passes(db, exam), plan_version=exam.plan_version, tasks=[TaskRead.model_validate(task) for task in sorted(exam.tasks, key=lambda item: (item.study_date, item.id))])
+    return ExamRead(id=exam.id, subject=exam.subject, exam_date=exam.exam_date, scope_start=exam.scope_start, scope_end=exam.scope_end, scope_unit=exam.scope_unit, target_passes=exam.target_passes, current_passes=round(done / scope_size(exam), 2), forecast_passes=forecast_passes(db, exam), plan_version=exam.plan_version, ai_summary=exam.ai_summary, tasks=[TaskRead.model_validate(task) for task in sorted(exam.tasks, key=lambda item: (item.study_date, item.suggested_start_time, item.id))])
 
 
 @app.get("/api/overview", response_model=OverviewRead)
@@ -55,7 +102,11 @@ def create_exam(payload: ExamCreate, db: Session = Depends(get_db)) -> ExamRead:
     exam = Exam(**payload.model_dump())
     db.add(exam)
     db.flush()
-    generate_initial_plan(db, exam)
+    try:
+        create_openai_tasks(db, exam, date.today())
+    except OpenAIPlannerError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     db.commit()
     exam = db.scalar(select(Exam).where(Exam.id == exam.id).options(selectinload(Exam.tasks)))
     assert exam is not None
@@ -85,7 +136,11 @@ def check_in(task_id: int, payload: CheckInCreate, db: Session = Depends(get_db)
     if future_ids:
         db.execute(delete(StudyTask).where(StudyTask.id.in_(future_ids)))
     exam.plan_version += 1
-    changed = len(build_tasks(db, exam, max(date.today(), task.study_date) + timedelta(days=1), completed_units(db, exam.id)))
+    try:
+        changed = create_openai_tasks(db, exam, max(date.today(), task.study_date) + timedelta(days=1))
+    except OpenAIPlannerError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     db.commit()
     refreshed = db.scalar(select(Exam).where(Exam.id == exam.id).options(selectinload(Exam.tasks)))
     assert refreshed is not None
@@ -101,5 +156,11 @@ def reset_demo(db: Session = Depends(get_db)) -> OverviewRead:
         CalendarEvent(title="카페 아르바이트", event_type="WORK", starts_at=datetime.combine(today + timedelta(days=3), datetime.min.time()).replace(hour=14), ends_at=datetime.combine(today + timedelta(days=3), datetime.min.time()).replace(hour=20)),
     ])
     exam = Exam(subject="생화학", exam_date=today + timedelta(days=8), scope_start=1, scope_end=160, scope_unit="페이지", target_passes=2)
-    db.add(exam); db.flush(); generate_initial_plan(db, exam); db.commit()
+    db.add(exam); db.flush()
+    try:
+        create_openai_tasks(db, exam, today)
+    except OpenAIPlannerError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    db.commit()
     return get_overview(db)

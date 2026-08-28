@@ -25,6 +25,7 @@ class Exam(Base):
     scope_unit: Mapped[str] = mapped_column(String(20), default="페이지")
     target_passes: Mapped[float] = mapped_column(Float, default=1.0)
     plan_version: Mapped[int] = mapped_column(Integer, default=1)
+    ai_summary: Mapped[str] = mapped_column(String(500), default="")
     tasks: Mapped[list["StudyTask"]] = relationship(back_populates="exam", cascade="all, delete-orphan")
 
 
@@ -39,6 +40,8 @@ class StudyTask(Base):
     planned_units: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), default="PLANNED")
     plan_version: Mapped[int] = mapped_column(Integer, default=1)
+    suggested_start_time: Mapped[str] = mapped_column(String(5), default="19:00")
+    suggested_end_time: Mapped[str] = mapped_column(String(5), default="20:00")
     exam: Mapped[Exam] = relationship(back_populates="tasks")
     logs: Mapped[list["StudyLog"]] = relationship(back_populates="task", cascade="all, delete-orphan")
 
