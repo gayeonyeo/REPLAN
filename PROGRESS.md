@@ -19,7 +19,7 @@
 ## Version 0.3.1 · Calendar & latency
 
 - [x] 월간과 선택일 타임테이블을 3:2 비율의 단일 화면으로 통합
-- [x] OpenAI Responses API에 `reasoning.effort: none` 명시
+- [x] OpenAI Responses API에 `reasoning.effort: minimal` 명시
 - [x] 계획 생성·재생성 요청이 진행되는 동안에만 로딩 오버레이 표시
 - [x] 로딩 상태 생명주기 자동 테스트 추가
 
