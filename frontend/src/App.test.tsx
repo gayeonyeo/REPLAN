@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import App from './App'
-import CalendarPage from './pages/CalendarPage'
+import CalendarPage, { subjectStyle } from './pages/CalendarPage'
 import ExamRegister from './pages/ExamRegister'
 
 vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ events: [], exams: [] }) })))
@@ -36,6 +36,10 @@ test('offers weekly recurring dates and a split resize handle', async () => {
   fireEvent.click(screen.getByRole('checkbox', { name: /매주 반복/ }))
   expect(screen.getByLabelText('반복 종료일')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '월간과 일간 캘린더 너비 조절' })).toBeInTheDocument()
+})
+
+test('assigns different colors to different subject positions', () => {
+  expect(subjectStyle(0)).not.toEqual(subjectStyle(1))
 })
 
 test('shows planning status only while an exam plan request is running', async () => {
