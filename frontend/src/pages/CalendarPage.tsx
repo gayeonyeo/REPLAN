@@ -11,6 +11,7 @@ const WEEKDAYS=['일','월','화','수','목','금','토'], HOURS=Array.from({le
 const dateKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 const minutes=(v:string)=>{const [h,m]=v.split(':').map(Number);return h*60+m}, clock=(v:number)=>`${String(Math.floor(v/60)).padStart(2,'0')}:${String(v%60).padStart(2,'0')}`
 const mondayOf=(value:Date)=>{const d=new Date(value),day=d.getDay();d.setDate(d.getDate()-(day===0?6:day-1));d.setHours(0,0,0,0);return d}
+const subjectTone=(subject:string)=>`subject-${Array.from(subject).reduce((sum,char)=>sum+char.charCodeAt(0),0)%6}`
 const emptyForm=():EventForm=>({title:'',event_type:'CLASS',start_date:dateKey(new Date()),end_date:dateKey(new Date()),start_time:'09:00',end_time:'10:00',repeat_weekly:false})
 
 export default function CalendarPage(){
@@ -23,8 +24,8 @@ export default function CalendarPage(){
  useEffect(()=>localStorage.setItem('calendarSplitPercent',String(split)),[split])
  const items=useMemo<Item[]>(()=>[
   ...data.events.map(x=>({id:`event-${x.id}`,sourceId:x.id,source:'event' as const,date:x.starts_at.slice(0,10),title:x.title,detail:'고정 일정',startTime:x.starts_at.slice(11,16),endTime:x.ends_at.slice(11,16),tone:'event',kind:'일정'})),
-  ...data.exams.flatMap(e=>e.tasks.map(x=>({id:`task-${x.id}`,sourceId:x.id,source:'task' as const,date:x.study_date,title:e.subject,detail:`${x.pass_number}회독 · ${x.scope_start}–${x.scope_end} ${e.scope_unit}`,startTime:x.suggested_start_time,endTime:x.suggested_end_time,tone:x.status.toLowerCase(),kind:'공부'}))),
-  ...data.exams.map(e=>({id:`exam-${e.id}`,sourceId:e.id,source:'event' as const,date:e.exam_date,title:`${e.subject} 시험`,detail:`목표 ${e.target_passes}회독`,startTime:e.exam_time,endTime:clock(Math.min(1439,minutes(e.exam_time)+60)),tone:'exam',kind:'시험'}))],[data])
+  ...data.exams.flatMap(e=>e.tasks.map(x=>({id:`task-${x.id}`,sourceId:x.id,source:'task' as const,date:x.study_date,title:e.subject,detail:`${x.pass_number}회독 · ${x.scope_start}–${x.scope_end} ${e.scope_unit}`,startTime:x.suggested_start_time,endTime:x.suggested_end_time,tone:`${x.status.toLowerCase()} ${subjectTone(e.subject)}`,kind:'공부'}))),
+  ...data.exams.map(e=>({id:`exam-${e.id}`,sourceId:e.id,source:'event' as const,date:e.exam_date,title:`${e.subject} 시험`,detail:`목표 ${e.target_passes}회독`,startTime:e.exam_time,endTime:clock(Math.min(1439,minutes(e.exam_time)+60)),tone:`exam ${subjectTone(e.subject)}`,kind:'시험'}))],[data])
  const monthDays=useMemo(()=>{const f=new Date(cursor.getFullYear(),cursor.getMonth(),1),s=new Date(f.getFullYear(),f.getMonth(),1-f.getDay());return Array.from({length:42},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d})},[cursor])
  const weekDays=useMemo(()=>{const s=mondayOf(cursor);return Array.from({length:7},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d})},[cursor]),dayItems=useMemo(()=>items.filter(x=>x.date===selectedDate).sort((a,b)=>a.startTime.localeCompare(b.startTime)),[items,selectedDate])
  const submit=async(e:React.FormEvent)=>{e.preventDefault();try{if(form.repeat_weekly)await api.createRecurringEvent({title:form.title,event_type:form.event_type,start_date:form.start_date,end_date:form.end_date,start_time:form.start_time,end_time:form.end_time});else await api.createEvent({title:form.title,event_type:form.event_type,starts_at:`${form.start_date}T${form.start_time}:00`,ends_at:`${form.start_date}T${form.end_time}:00`});setForm(emptyForm());setShowForm(false);await load()}catch(reason){setError((reason as Error).message)}}
