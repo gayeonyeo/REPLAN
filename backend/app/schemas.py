@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -20,6 +20,23 @@ class EventCreate(BaseModel):
 class EventRead(EventCreate):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+class RecurringEventCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    event_type: Literal["CLASS", "WORK", "APPOINTMENT", "OTHER"] = "OTHER"
+    start_date: date
+    end_date: date
+    start_time: time
+    end_time: time
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end_date < self.start_date:
+            raise ValueError("반복 종료일은 시작일과 같거나 이후여야 합니다.")
+        if self.end_time <= self.start_time:
+            raise ValueError("종료 시간은 시작 시간보다 늦어야 합니다.")
+        return self
 
 
 class EventTimeUpdate(BaseModel):

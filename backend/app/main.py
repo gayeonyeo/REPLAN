@@ -10,7 +10,7 @@ from app.ai_planner import OpenAIPlannerError, generate_study_plan
 from app.config import OPENAI_API_KEY, OPENAI_MODEL, TIMEZONE
 from app.database import Base, SessionLocal, engine, get_db, migrate_runtime_schema
 from app.models import CalendarEvent, Exam, StudyLog, StudyTask
-from app.schemas import CheckInCreate, CheckInResponse, EventCreate, EventRead, EventTimeUpdate, ExamCreate, ExamRead, OverviewRead, TaskRead, TaskTimeUpdate
+from app.schemas import CheckInCreate, CheckInResponse, EventCreate, EventRead, EventTimeUpdate, ExamCreate, ExamRead, OverviewRead, RecurringEventCreate, TaskRead, TaskTimeUpdate
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -157,6 +157,26 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> EventRe
     db.commit()
     db.refresh(event)
     return EventRead.model_validate(event)
+
+
+@app.post("/api/events/recurring", response_model=list[EventRead], status_code=201)
+def create_recurring_event(payload: RecurringEventCreate, db: Session = Depends(get_db)) -> list[EventRead]:
+    events: list[CalendarEvent] = []
+    occurrence_date = payload.start_date
+    while occurrence_date <= payload.end_date:
+        event = CalendarEvent(
+            title=payload.title,
+            event_type=payload.event_type,
+            starts_at=datetime.combine(occurrence_date, payload.start_time),
+            ends_at=datetime.combine(occurrence_date, payload.end_time),
+        )
+        db.add(event)
+        events.append(event)
+        occurrence_date += timedelta(days=7)
+    db.commit()
+    for event in events:
+        db.refresh(event)
+    return [EventRead.model_validate(event) for event in events]
 
 
 @app.patch("/api/events/{event_id}/time", response_model=EventRead)

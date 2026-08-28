@@ -30,6 +30,14 @@ test('switches to the weekly calendar', async () => {
   expect(screen.getAllByRole('button', { name: /월|화|수|목|금|토|일/ }).length).toBeGreaterThan(1)
 })
 
+test('offers weekly recurring dates and a split resize handle', async () => {
+  await act(async () => { render(<MemoryRouter><CalendarPage/></MemoryRouter>) })
+  fireEvent.click(screen.getByRole('button', { name: '+ 고정 일정' }))
+  fireEvent.click(screen.getByRole('checkbox', { name: /매주 반복/ }))
+  expect(screen.getByLabelText('반복 종료일')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '월간과 일간 캘린더 너비 조절' })).toBeInTheDocument()
+})
+
 test('shows planning status only while an exam plan request is running', async () => {
   let finish!: (value: Response) => void
   vi.mocked(fetch).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))

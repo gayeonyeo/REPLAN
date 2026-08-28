@@ -88,3 +88,28 @@ def test_exam_can_be_deleted(monkeypatch) -> None:
         assert overview["exams"] == []
     finally:
         app.dependency_overrides.clear()
+
+
+def test_weekly_recurring_event_creates_each_occurrence() -> None:
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    TestingSession = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+
+    def override_db():
+        with TestingSession() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        with TestClient(app) as client:
+            response = client.post("/api/events/recurring", json={
+                "title": "매주 수업", "event_type": "CLASS",
+                "start_date": "2026-09-01", "end_date": "2026-09-22",
+                "start_time": "10:00", "end_time": "11:30",
+            })
+            overview = client.get("/api/overview").json()
+        assert response.status_code == 201
+        assert [event["starts_at"][:10] for event in response.json()] == ["2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22"]
+        assert len(overview["events"]) == 4
+    finally:
+        app.dependency_overrides.clear()

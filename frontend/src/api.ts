@@ -16,6 +16,7 @@ export const api = {
   overview: () => request<Overview>('/api/overview'),
   resetDemo: () => request<Overview>('/api/demo/reset', { method: 'POST' }),
   createEvent: (payload: object) => request('/api/events', { method: 'POST', body: JSON.stringify(payload) }),
+  createRecurringEvent: (payload: object) => request('/api/events/recurring', { method: 'POST', body: JSON.stringify(payload) }),
   updateEventTime: (eventId: number, payload: object) => request(`/api/events/${eventId}/time`, { method: 'PATCH', body: JSON.stringify(payload) }),
   createExam: (payload: object) => request('/api/exams', { method: 'POST', body: JSON.stringify(payload) }),
   deleteExam: (examId: number) => request<void>(`/api/exams/${examId}`, { method: 'DELETE' }),
