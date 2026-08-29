@@ -33,6 +33,8 @@ def migrate_runtime_schema() -> None:
                 connection.execute(text("ALTER TABLE exams ADD COLUMN exam_time VARCHAR(5) NOT NULL DEFAULT '09:00'"))
             if "priority_chapters" not in exam_columns:
                 connection.execute(text("ALTER TABLE exams ADD COLUMN priority_chapters TEXT NOT NULL DEFAULT ''"))
+            if "planning_preferences" not in exam_columns:
+                connection.execute(text("ALTER TABLE exams ADD COLUMN planning_preferences TEXT NOT NULL DEFAULT ''"))
             if "last_replan_summary" not in exam_columns:
                 connection.execute(text("ALTER TABLE exams ADD COLUMN last_replan_summary VARCHAR(700) NOT NULL DEFAULT ''"))
             if "pace_advice" not in exam_columns:

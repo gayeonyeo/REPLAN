@@ -53,3 +53,10 @@ test('shows planning status only while an exam plan request is running', async (
   finish(new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } }))
   await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
 })
+
+test('accepts freeform planning preferences for the AI plan', () => {
+  render(<MemoryRouter><ExamRegister/></MemoryRouter>)
+  const preferences = screen.getByLabelText(/^과목 특성 및 계획 요구사항/)
+  fireEvent.change(preferences, { target: { value: '시험 전 이틀은 복습만 하고 싶어요.' } })
+  expect(preferences).toHaveValue('시험 전 이틀은 복습만 하고 싶어요.')
+})

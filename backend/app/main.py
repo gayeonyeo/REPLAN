@@ -157,6 +157,7 @@ def create_openai_tasks(db: Session, exam: Exam, start_date: date) -> int:
         start_date=start_date,
         events=blocking,
         priority_chapters=exam.priority_chapters,
+        planning_preferences=exam.planning_preferences,
         learning_profile=profile,
     )
     if profile["sample_size"]:
@@ -192,7 +193,7 @@ def create_openai_tasks(db: Session, exam: Exam, start_date: date) -> int:
 
 def serialize_exam(db: Session, exam: Exam) -> ExamRead:
     done = completed_units(db, exam.id)
-    return ExamRead(id=exam.id, subject=exam.subject, exam_date=exam.exam_date, exam_time=exam.exam_time, scope_start=exam.scope_start, scope_end=exam.scope_end, scope_unit=exam.scope_unit, target_passes=exam.target_passes, current_passes=round(done / scope_size(exam), 2), forecast_passes=forecast_passes(db, exam), plan_version=exam.plan_version, ai_summary=exam.ai_summary, priority_chapters=exam.priority_chapters, last_replan_summary=exam.last_replan_summary, pace_advice=exam.pace_advice, tasks=[TaskRead.model_validate(task) for task in sorted(exam.tasks, key=lambda item: (item.study_date, item.suggested_start_time, item.id))])
+    return ExamRead(id=exam.id, subject=exam.subject, exam_date=exam.exam_date, exam_time=exam.exam_time, scope_start=exam.scope_start, scope_end=exam.scope_end, scope_unit=exam.scope_unit, target_passes=exam.target_passes, current_passes=round(done / scope_size(exam), 2), forecast_passes=forecast_passes(db, exam), plan_version=exam.plan_version, ai_summary=exam.ai_summary, priority_chapters=exam.priority_chapters, planning_preferences=exam.planning_preferences, last_replan_summary=exam.last_replan_summary, pace_advice=exam.pace_advice, tasks=[TaskRead.model_validate(task) for task in sorted(exam.tasks, key=lambda item: (item.study_date, item.suggested_start_time, item.id))])
 
 
 @app.get("/api/overview", response_model=OverviewRead)

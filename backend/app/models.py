@@ -28,6 +28,7 @@ class Exam(Base):
     plan_version: Mapped[int] = mapped_column(Integer, default=1)
     ai_summary: Mapped[str] = mapped_column(String(500), default="")
     priority_chapters: Mapped[str] = mapped_column(Text, default="")
+    planning_preferences: Mapped[str] = mapped_column(Text, default="")
     last_replan_summary: Mapped[str] = mapped_column(String(700), default="")
     pace_advice: Mapped[str] = mapped_column(String(700), default="")
     tasks: Mapped[list["StudyTask"]] = relationship(back_populates="exam", cascade="all, delete-orphan")

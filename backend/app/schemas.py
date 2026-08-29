@@ -59,6 +59,7 @@ class ExamCreate(BaseModel):
     scope_unit: str = Field(default="페이지", max_length=20)
     target_passes: float = Field(default=1.0, ge=1.0, le=5.0)
     priority_chapters: str = Field(default="", max_length=2000)
+    planning_preferences: str = Field(default="", max_length=4000)
 
     @model_validator(mode="after")
     def validate_scope(self):
@@ -114,6 +115,7 @@ class ExamRead(BaseModel):
     plan_version: int
     ai_summary: str
     priority_chapters: str
+    planning_preferences: str
     last_replan_summary: str
     pace_advice: str
     tasks: list[TaskRead]

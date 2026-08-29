@@ -44,12 +44,14 @@ def test_openai_structured_plan(monkeypatch) -> None:
         completed_units=0,
         start_date=date.today(),
         events=[],
+        planning_preferences="암기 과목이라 짧게 여러 번 보고 싶어요.",
         learning_profile={"confidence": "medium", "sample_size": 4, "average_completion_ratio": 0.8},
     )
     assert plan.tasks[0].suggested_start_time == "19:00"
     assert plan.tasks[0].scope_end == 10
     assert FakeResponses.last_payload["learning_profile"]["average_completion_ratio"] == 0.8
     assert FakeResponses.last_payload["progress"]["required_next_scope_start"] == 1
+    assert FakeResponses.last_payload["exam"]["planning_preferences"] == "암기 과목이라 짧게 여러 번 보고 싶어요."
 
 
 def test_replan_range_gaps_are_normalized_from_completed_progress() -> None:
