@@ -20,6 +20,7 @@ class EventCreate(BaseModel):
 class EventRead(EventCreate):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    recurrence_group_id: str | None = None
 
 
 class RecurringEventCreate(BaseModel):
@@ -50,12 +51,20 @@ class EventTimeUpdate(BaseModel):
         return self
 
 
+class EventUpdate(EventCreate):
+    apply_to: Literal["THIS", "SERIES"] = "THIS"
+
+
+class EventDeleteRequest(BaseModel):
+    apply_to: Literal["THIS", "SERIES"] = "THIS"
+
+
 class ExamCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=120)
     exam_date: date
     exam_time: str = Field(default="09:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
-    scope_start: int = Field(ge=0)
-    scope_end: int = Field(gt=0)
+    scope_start: float = Field(ge=0)
+    scope_end: float = Field(gt=0)
     scope_unit: str = Field(default="페이지", max_length=20)
     target_passes: float = Field(default=1.0, ge=1.0, le=5.0)
     priority_chapters: str = Field(default="", max_length=2000)
@@ -70,7 +79,7 @@ class ExamCreate(BaseModel):
 
 class CheckInCreate(BaseModel):
     result: Literal["COMPLETED", "PARTIAL", "MISSED"]
-    actual_scope_end: int | None = None
+    actual_scope_end: float | None = None
 
 
 class TaskTimeUpdate(BaseModel):
@@ -92,9 +101,9 @@ class TaskRead(BaseModel):
     exam_id: int
     study_date: date
     pass_number: int
-    scope_start: int
-    scope_end: int
-    planned_units: int
+    scope_start: float
+    scope_end: float
+    planned_units: float
     status: str
     plan_version: int
     suggested_start_time: str
@@ -106,8 +115,8 @@ class ExamRead(BaseModel):
     subject: str
     exam_date: date
     exam_time: str
-    scope_start: int
-    scope_end: int
+    scope_start: float
+    scope_end: float
     scope_unit: str
     target_passes: float
     current_passes: float
@@ -119,6 +128,28 @@ class ExamRead(BaseModel):
     last_replan_summary: str
     pace_advice: str
     tasks: list[TaskRead]
+    plan_logs: list["PlanLogRead"] = Field(default_factory=list)
+    completion_logs: list["CompletionLogRead"] = Field(default_factory=list)
+
+
+class PlanLogRead(BaseModel):
+    id: int
+    previous_version: int
+    new_version: int
+    explanation: str
+    recommendation: str
+    created_at: datetime
+
+
+class CompletionLogRead(BaseModel):
+    id: int
+    task_id: int
+    plan_version: int
+    study_date: date
+    result: str
+    planned_units: float
+    completed_units: float
+    recorded_at: datetime
 
 
 class OverviewRead(BaseModel):
